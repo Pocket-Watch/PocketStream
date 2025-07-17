@@ -32,8 +32,7 @@ func (a Arguments) Validate() {
 		os.Exit(1)
 	}
 
-	_, err := url.Parse(a.RtmpSource)
-	if err != nil {
+	if _, err := url.Parse(a.RtmpSource); err != nil {
 		fmt.Println("Invalid RTMP source URL ", err)
 		os.Exit(1)
 	}
@@ -43,8 +42,7 @@ func (a Arguments) Validate() {
 		os.Exit(1)
 	}
 
-	_, err = url.Parse(a.Destination)
-	if err != nil {
+	if _, err := url.Parse(a.Destination); err != nil {
 		fmt.Println("Invalid destination URL ", err)
 		os.Exit(1)
 	}
@@ -61,7 +59,7 @@ func (a Arguments) Validate() {
 }
 
 const DEFAULT_RTMP_SOURCE = "localhost:9000"
-const DEFAULT_SEGMENT_DURATION = "3"
+const DEFAULT_SEGMENT_DURATION = "2"
 
 func Parse(args []string) Arguments {
 	if len(args) == 0 {
@@ -119,6 +117,7 @@ func Parse(args []string) Arguments {
 			}
 			continue
 		}
+		fmt.Println("[WARNING] Unrecognized flag/argument:", args[i])
 
 	}
 	return arguments
@@ -141,6 +140,7 @@ func PrintHelp() {
 	fmt.Println("    -d, --dest     [scheme://host:port]  Destination domain where the server is running on")
 	fmt.Println("    -s, --segment  [seconds]             Segment duration in seconds (default: " + DEFAULT_SEGMENT_DURATION + ")")
 	fmt.Println()
+	fmt.Println("FFmpeg dependency is necessary.")
 	fmt.Println("Specifying ports is optional")
 	fmt.Println()
 	fmt.Println("Usage example:")
