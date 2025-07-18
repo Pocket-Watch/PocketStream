@@ -16,4 +16,8 @@ https://github.com/Pocket-Watch/PocketWatch integration for desktop live-streami
 ## Setting up Lua script for OBS [Optional]
 1. Navigate to **Tools** >> **Scripts**
 2. Press **+** and select `pocketstream.lua`
-3. On the right you'll be able to configure input parameters such as pocketwatch token
+3. On the right you'll be able to configure input parameters such as pocketwatch token or host
+
+## Useful OBS plugins for more audio capture control
+ - Windows: https://obsproject.com/forum/resources/win-capture-audio.1338
+ - Linux (/w pipewire): https://obsproject.com/forum/resources/pipewire-audio-capture.1458
