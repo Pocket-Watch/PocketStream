@@ -19,6 +19,7 @@ function script_properties()
     obs.obs_properties_add_text(props, "token",  "Token",  obs.OBS_TEXT_DEFAULT)
     obs.obs_properties_add_text(props, "host",   "Host",   obs.OBS_TEXT_DEFAULT)
     obs.obs_properties_add_text(props, "source", "Source", obs.OBS_TEXT_DEFAULT)
+    obs.obs_properties_add_float_slider(props, "duration", "Hls Chunk\nDuration", 0.0, 10.0, 0.1)
 
     return props
 end
@@ -31,23 +32,28 @@ function handle_event(event)
     -- print("DEBUG: The event was = " .. event)
 
     if event == obs.OBS_FRONTEND_EVENT_STREAMING_STARTING then
-        print("Starting PocketStream.")
+        print("INFO: Starting PocketStream.")
         start_pocket_stream()
     elseif event == obs.OBS_FRONTEND_EVENT_STREAMING_STOPPED then
         pocketstream.process:close()
-        print("Stream finished. PocketStream closed.")
+        print("INFO: Stream finished. PocketStream closed.")
     end
 end
 
 function start_pocket_stream()
     local token  = obs.obs_data_get_string(pocketstream.settings, "token")
     local host   = obs.obs_data_get_string(pocketstream.settings, "host")
-    local source = obs.obs_data_get_string(pocketstream.settings, "source")
 
     local args = " --dest " .. host .. " --token " .. token
 
+    local source = obs.obs_data_get_string(pocketstream.settings, "source")
     if source ~= "" then 
         args = args .. " --source " .. source
+    end
+
+    local duration = obs.obs_data_get_double(pocketstream.settings, "duration")
+    if duration ~= 0 then 
+        args = args .. " --segment " .. duration
     end
 
     -- print("DEBUG: Args are: " .. args)
