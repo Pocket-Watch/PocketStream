@@ -4,7 +4,6 @@
 # Exclusions for random and auto-generated directories.
 build/*
 logs/*
-go.sum
 
 # Exclusions for random files.
 build_local.bat
