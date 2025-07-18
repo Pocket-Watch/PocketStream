@@ -31,7 +31,7 @@ func main() {
 	ffArgs := []string{
 		"-listen", "1",
 		"-i", "rtmp://" + args.RtmpSource,
-		"-codec:", "copy",
+		"-c", "copy",
 		"-f", "hls",
 		"-headers", "Authorization: " + args.Token + "\r\n",
 		"-method", "POST",
@@ -74,6 +74,7 @@ func executeCommand(args *Arguments, cmd *exec.Cmd) {
 		}()*/
 
 	checkPortClaimedPeriodically(args.RtmpSource, 250*time.Millisecond, 10)
+	fmt.Println("PocketStream is ready")
 
 	if err := cmd.Wait(); err != nil {
 		fmt.Println(err)
