@@ -9,6 +9,7 @@ import (
 	"strconv"
 )
 
+var HELP_FLAGS = []string{"-h", "-help", "--help"}
 var SOURCE_FLAGS = []string{"-src", "--source"}
 var TOKEN_FLAGS = []string{"-t", "--token"}
 var DESTINATION_FLAGS = []string{"-d", "--dest", "--domain"}
@@ -74,6 +75,11 @@ func Parse(args []string) Arguments {
 	}
 
 	for i := 0; i < len(args); i++ {
+		if slices.Contains(HELP_FLAGS, args[i]) {
+			PrintHelp()
+			os.Exit(0)
+		}
+
 		if index := slices.Index(SOURCE_FLAGS, args[i]); index != -1 {
 			if i+1 < len(args) {
 				arguments.RtmpSource = args[i+1]
@@ -139,6 +145,7 @@ func PrintHelp() {
 	fmt.Println("    -src, --source [host:port]           Rtmp source stream address (default: " + DEFAULT_RTMP_SOURCE + ")")
 	fmt.Println("    -d, --dest     [scheme://host:port]  Destination domain where the server is running on")
 	fmt.Println("    -s, --segment  [seconds]             Segment duration in seconds (default: " + DEFAULT_SEGMENT_DURATION + ")")
+	fmt.Println("    -h, -help, --help                    Display this help message")
 	fmt.Println()
 	fmt.Println("FFmpeg dependency is necessary.")
 	fmt.Println("Specifying ports is optional")
