@@ -90,6 +90,7 @@ func checkPortClaimedPeriodically(address string, interval time.Duration, attemp
 			remoteV4 := s.RemoteAddr.String()
 			return remoteV4 == addressV4
 		})
+
 		if err != nil {
 			fmt.Println("[CHECK TCPv4 ERROR] ", err)
 			os.Exit(1)
@@ -109,17 +110,18 @@ func checkPortClaimedPeriodically(address string, interval time.Duration, attemp
 			fmt.Println("Confirmed server listening at " + address + " after " + time.Since(start).String())
 			return
 		}
+
 		time.Sleep(interval)
 	}
-	fmt.Println("Failed to determine whether address", address, "is claimed after", attempts, "attempts")
-	//os.Exit(1)
+
+	fmt.Println("ERROR Failed to determine whether address", address, "is claimed after", attempts, "attempts")
 }
 
 func startStream(args *Arguments) {
 	req, err := http.NewRequest("POST", args.Destination+StreamStartEndpoint, nil)
 	if err != nil {
-		fmt.Println(err)
-		return
+		fmt.Println("ERRPR ", err)
+		os.Exit(1)
 	}
 
 	req.Header.Set("Authorization", args.Token)
@@ -127,18 +129,21 @@ func startStream(args *Arguments) {
 	client := http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("ERROR", err)
 		os.Exit(1)
 	}
+
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		fmt.Println("Server responded with status code: " + resp.Status)
+		fmt.Println("ERROR Server responded with status code: " + resp.Status)
+
 		errBody, err := io.ReadAll(resp.Body)
 		var bodyError = ""
 		if err == nil {
 			bodyError = string(errBody)
 		}
+
 		fmt.Println(bodyError)
 		os.Exit(1)
 	}

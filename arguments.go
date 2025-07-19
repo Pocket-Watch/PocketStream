@@ -23,37 +23,37 @@ type Arguments struct {
 
 func (a Arguments) Validate() {
 	if a.Token == "" {
-		fmt.Println("No token specified!")
+		fmt.Println("ERROR No token specified!")
 		os.Exit(1)
 	}
 
 	if a.RtmpSource == "" {
-		fmt.Println("No RTMP source specified!")
+		fmt.Println("ERROR No RTMP source specified!")
 		os.Exit(1)
 	}
 
 	if _, err := url.Parse(a.RtmpSource); err != nil {
-		fmt.Println("Invalid RTMP source URL ", err)
+		fmt.Println("ERROR Invalid RTMP source URL ", err)
 		os.Exit(1)
 	}
 
 	if a.Destination == "" {
-		fmt.Println("No destination specified!")
+		fmt.Println("ERROR No destination specified!")
 		os.Exit(1)
 	}
 
 	if _, err := url.Parse(a.Destination); err != nil {
-		fmt.Println("Invalid destination URL ", err)
+		fmt.Println("ERROR Invalid destination URL ", err)
 		os.Exit(1)
 	}
 
 	duration, err := strconv.Atoi(a.SegmentDuration)
 	if err != nil {
-		fmt.Println("Invalid segment duration: ", err)
+		fmt.Println("ERROR Invalid segment duration: ", err)
 		os.Exit(1)
 	}
 	if duration < 0 {
-		fmt.Println("Invalid (negative) segment duration: ", err)
+		fmt.Println("ERROR Invalid (negative) segment duration: ", err)
 		os.Exit(1)
 	}
 }
