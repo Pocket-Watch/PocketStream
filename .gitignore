@@ -11,3 +11,5 @@ build_local.sh
 deploy.sh
 config.json
 *.exe
+*.ts
+*.m3u8

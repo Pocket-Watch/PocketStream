@@ -44,7 +44,7 @@ func main() {
 	startStream(&args)
 
 	cmd := exec.Command("ffmpeg", ffArgs...)
-	fmt.Println("Executing FFmpeg command!")
+	fmt.Println("Executing FFmpeg command:", cmd.String())
 	executeCommand(&args, cmd)
 }
 

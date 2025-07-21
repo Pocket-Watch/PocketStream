@@ -48,7 +48,7 @@ func (a Arguments) Validate() {
 		os.Exit(1)
 	}
 
-	duration, err := strconv.Atoi(a.SegmentDuration)
+	duration, err := strconv.ParseFloat(a.SegmentDuration, 64)
 	if err != nil {
 		fmt.Println("ERROR Invalid segment duration: ", err)
 		os.Exit(1)
@@ -148,7 +148,7 @@ func PrintHelp() {
 	fmt.Println("    -h, -help, --help                    Display this help message")
 	fmt.Println()
 	fmt.Println("FFmpeg dependency is necessary.")
-	fmt.Println("Specifying ports is optional")
+	fmt.Println("Specifying ports is optional. Segment duration can be given as a decimal")
 	fmt.Println()
 	fmt.Println("Usage example:")
 	fmt.Printf("  %v -t OBHWYICqacQK2yFQGdQNe72O752SBVti3sU5w-Ri8KM= --dest https://example.com", exec)
