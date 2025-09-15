@@ -14,8 +14,8 @@ import (
 // Output locally ffmpeg -listen 1 -i rtmp://localhost:9000 -codec: copy -hls_time 3 -hls_list_size 0 -f hls live.m3u8
 // Test: ./pocketstream -t OBHWYICqacQK2yFQGdQNe72O752SBVti3sU5w-Ri8KM= -d localhost:1234
 
-const StreamUploadEndpoint = "/watch/api/stream/upload/stream.m3u8"
-const StreamStartEndpoint = "/watch/api/stream/start"
+const StreamUploadEndpoint = "/api/stream/upload/stream.m3u8"
+const StreamStartEndpoint = "/api/stream/start"
 
 func main() {
 	args := Parse(os.Args[1:])
