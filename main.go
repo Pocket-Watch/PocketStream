@@ -27,8 +27,19 @@ func main() {
 	}
 
 	destination := args.Destination + StreamUploadEndpoint
+	ffArgs := ffmpegUploadArgs(args, destination)
+
+	fmt.Println("Starting stream, informing the server!")
+	startStream(&args)
+
+	cmd := exec.Command("ffmpeg", ffArgs...)
+	fmt.Println("Executing FFmpeg command:", cmd.String())
+	executeCommand(&args, cmd)
+}
+
+func ffmpegUploadArgs(args Arguments, destination string) []string {
 	// Headers have CRLF suffix to prevent FFmpeg warning for every request
-	ffArgs := []string{
+	return []string{
 		"-listen", "1",
 		"-i", "rtmp://" + args.RtmpSource,
 		"-c", "copy",
@@ -39,13 +50,6 @@ func main() {
 		"-hls_list_size", "0",
 		destination,
 	}
-
-	fmt.Println("Starting stream, informing the server!")
-	startStream(&args)
-
-	cmd := exec.Command("ffmpeg", ffArgs...)
-	fmt.Println("Executing FFmpeg command:", cmd.String())
-	executeCommand(&args, cmd)
 }
 
 func executeCommand(args *Arguments, cmd *exec.Cmd) {
