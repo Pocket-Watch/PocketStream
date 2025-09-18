@@ -115,6 +115,15 @@ func parseHlsPath(line string, from int) string {
 func uploadRequest(args *Arguments, path string) {
 	destination := args.Destination + StreamUpload + filepath.Base(path)
 
+	i, attempts := 0, 20
+	for !fileExists(path) {
+		i++
+		if i > attempts {
+			fmt.Println()
+			os.Exit(1)
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		panic(err)
@@ -252,4 +261,9 @@ func startStream(args *Arguments) {
 
 func toString(num int) string {
 	return strconv.Itoa(num)
+}
+
+func fileExists(filePath string) bool {
+	_, err := os.Stat(filePath)
+	return err == nil
 }
