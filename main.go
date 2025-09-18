@@ -1,12 +1,16 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
 	"fmt"
 	"github.com/cakturk/go-netstat/netstat"
 	"io"
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -16,6 +20,10 @@ import (
 
 const StreamUploadEndpoint = "/api/stream/upload/stream.m3u8"
 const StreamStartEndpoint = "/api/stream/start"
+const PlaylistName = "stream.m3u8"
+const M3U8ContentType = "application/vnd.apple.mpegurl"
+
+var client = http.Client{}
 
 func main() {
 	args := Parse(os.Args[1:])
@@ -27,14 +35,104 @@ func main() {
 	}
 
 	destination := args.Destination + StreamUploadEndpoint
-	ffArgs := ffmpegUploadArgs(args, destination)
+
+	var ffArgs []string
+	if args.FFmpegUpload {
+		ffArgs = ffmpegUploadArgs(args, destination)
+	} else {
+		ffArgs = ffmpegFileArgs(args)
+	}
 
 	fmt.Println("Starting stream, informing the server!")
 	startStream(&args)
 
 	cmd := exec.Command("ffmpeg", ffArgs...)
 	fmt.Println("Executing FFmpeg command:", cmd.String())
-	executeCommand(&args, cmd)
+
+	if args.FFmpegUpload {
+		executeCommandStdPipe(&args, cmd)
+		return
+	}
+
+	handleStreaming(&args, cmd)
+}
+
+func handleStreaming(args *Arguments, cmd *exec.Cmd) {
+	if err := os.MkdirAll(args.OutputDirectory, 0o755); err != nil {
+		fmt.Println("Error creating output directory:", err)
+		os.Exit(1)
+	}
+
+	_, err := cmd.StdoutPipe()
+	if err != nil {
+		return
+	}
+
+	stdErr, err := cmd.StderrPipe()
+	if err != nil {
+		return
+	}
+
+	if err := cmd.Start(); err != nil {
+		return
+	}
+
+	checkPortClaimedPeriodically(args.RtmpSource, 250*time.Millisecond, 10)
+
+	// FFmpeg writes only to STDERR
+	go func() {
+		scanner := bufio.NewScanner(stdErr)
+		for scanner.Scan() {
+			line := scanner.Text()
+			fmt.Println(line)
+			index := strings.Index(line, "[hls @")
+			if index == -1 {
+				continue
+			}
+			path := parseHlsPath(line, index+6)
+			fmt.Println("path", path)
+			uploadRequest(args, path)
+		}
+	}()
+
+	fmt.Println("PocketStream is ready")
+
+	if err := cmd.Wait(); err != nil {
+		fmt.Println("QUIT", err)
+	}
+}
+
+func parseHlsPath(line string, from int) string {
+	line = line[from:]
+	apostrophe1 := strings.Index(line, "'")
+	path := line[apostrophe1+1:]
+	apostrophe2 := strings.Index(path, "'")
+	path = path[:apostrophe2]
+	return strings.TrimSuffix(path, ".tmp")
+}
+
+func uploadRequest(args *Arguments, path string) {
+	destination := args.Destination + StreamUploadEndpoint
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		panic(err)
+	}
+
+	reader := bytes.NewReader(data)
+	req, err := http.NewRequest("POST", destination, reader)
+	if err != nil {
+		panic(err)
+	}
+	req.Header.Set("Authorization", args.Token)
+
+	response, err := client.Do(req)
+	if err != nil {
+		panic(err)
+	}
+	defer response.Body.Close()
+
+	fmt.Println("Status:", response.Status)
 }
 
 func ffmpegUploadArgs(args Arguments, destination string) []string {
@@ -52,30 +150,25 @@ func ffmpegUploadArgs(args Arguments, destination string) []string {
 	}
 }
 
-func executeCommand(args *Arguments, cmd *exec.Cmd) {
+func ffmpegFileArgs(args Arguments) []string {
+	return []string{
+		"-listen", "1",
+		"-i", "rtmp://" + args.RtmpSource,
+		"-c", "copy",
+		"-f", "hls",
+		"-hls_time", args.SegmentDuration,
+		"-hls_list_size", "0",
+		filepath.Join(args.OutputDirectory, PlaylistName),
+	}
+}
+
+func executeCommandStdPipe(args *Arguments, cmd *exec.Cmd) {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
 	if err := cmd.Start(); err != nil {
 		return
 	}
-
-	/*	// Read both outputs simultaneously
-		go func() {
-			scanner := bufio.NewScanner(os.Stdout)
-			for scanner.Scan() {
-				line := scanner.Text()
-				fmt.Println(line)
-			}
-		}()
-
-		go func() {
-			scanner := bufio.NewScanner(os.Stderr)
-			for scanner.Scan() {
-				line := scanner.Text()
-				fmt.Println(line)
-			}
-		}()*/
 
 	checkPortClaimedPeriodically(args.RtmpSource, 250*time.Millisecond, 10)
 	fmt.Println("PocketStream is ready")
@@ -96,7 +189,7 @@ func checkPortClaimedPeriodically(address string, interval time.Duration, attemp
 		})
 
 		if err != nil {
-			fmt.Println("[CHECK TCPv4 ERROR] ", err)
+			fmt.Println("[CHECK TCPv4 ERROR]", err)
 			os.Exit(1)
 		}
 
@@ -106,12 +199,12 @@ func checkPortClaimedPeriodically(address string, interval time.Duration, attemp
 		})
 
 		if err != nil {
-			fmt.Println("[CHECK TCPv6 ERROR] ", err)
+			fmt.Println("[CHECK TCPv6 ERROR]", err)
 			os.Exit(1)
 		}
 
 		if len(socketsV6) > 0 || len(socketsV4) > 0 {
-			fmt.Println("Confirmed server listening at " + address + " after " + time.Since(start).String())
+			fmt.Println("Confirmed server listening at", address, "after", time.Since(start).String())
 			return
 		}
 
@@ -124,7 +217,7 @@ func checkPortClaimedPeriodically(address string, interval time.Duration, attemp
 func startStream(args *Arguments) {
 	req, err := http.NewRequest("POST", args.Destination+StreamStartEndpoint, nil)
 	if err != nil {
-		fmt.Println("ERRPR ", err)
+		fmt.Println("ERROR", err)
 		os.Exit(1)
 	}
 
@@ -140,7 +233,7 @@ func startStream(args *Arguments) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		fmt.Println("ERROR Server responded with status code: " + resp.Status)
+		fmt.Println("ERROR Server responded with status code:", resp.Status)
 
 		errBody, err := io.ReadAll(resp.Body)
 		var bodyError = ""
@@ -151,4 +244,8 @@ func startStream(args *Arguments) {
 		fmt.Println(bodyError)
 		os.Exit(1)
 	}
+}
+
+func toString(num int) string {
+	return strconv.Itoa(num)
 }

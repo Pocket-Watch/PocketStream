@@ -5,11 +5,7 @@
 build/*
 logs/*
 
-# Exclusions for random files.
-build_local.bat
-build_local.sh
-deploy.sh
-config.json
 *.exe
 *.ts
 *.m3u8
+stream/

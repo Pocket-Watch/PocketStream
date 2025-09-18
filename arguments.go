@@ -14,12 +14,16 @@ var SOURCE_FLAGS = []string{"-src", "--source"}
 var TOKEN_FLAGS = []string{"-t", "--token"}
 var DESTINATION_FLAGS = []string{"-d", "--dest", "--domain"}
 var SEGMENT_DURATION_FLAGS = []string{"-s", "--segment", "--seg"}
+var OUTPUT_DIRECTORY_FLAGS = []string{"-o", "--out"}
+var FFMPEG_UPLOAD_FLAGS = []string{"-fu", "--ff-upload"}
 
 type Arguments struct {
 	Token           string
 	RtmpSource      string
 	Destination     string
 	SegmentDuration string
+	OutputDirectory string
+	FFmpegUpload    bool
 }
 
 func (a Arguments) Validate() {
@@ -61,6 +65,7 @@ func (a Arguments) Validate() {
 
 const DEFAULT_RTMP_SOURCE = "localhost:9000"
 const DEFAULT_SEGMENT_DURATION = "2"
+const DEFAULT_OUTPUT_DIRECTORY = "stream"
 
 func Parse(args []string) Arguments {
 	if len(args) == 0 {
@@ -68,10 +73,9 @@ func Parse(args []string) Arguments {
 		os.Exit(0)
 	}
 	arguments := Arguments{
-		Token:           "",
 		RtmpSource:      DEFAULT_RTMP_SOURCE,
-		Destination:     "",
 		SegmentDuration: DEFAULT_SEGMENT_DURATION,
+		OutputDirectory: DEFAULT_OUTPUT_DIRECTORY,
 	}
 
 	for i := 0; i < len(args); i++ {
@@ -80,10 +84,15 @@ func Parse(args []string) Arguments {
 			os.Exit(0)
 		}
 
+		if slices.Contains(FFMPEG_UPLOAD_FLAGS, args[i]) {
+			arguments.FFmpegUpload = true
+			continue
+		}
+
 		if index := slices.Index(SOURCE_FLAGS, args[i]); index != -1 {
-			if i+1 < len(args) {
-				arguments.RtmpSource = args[i+1]
-				i++
+			i++
+			if i < len(args) {
+				arguments.RtmpSource = args[i]
 			} else {
 				fmt.Println("Expected RTMP source.")
 				os.Exit(1)
@@ -92,9 +101,9 @@ func Parse(args []string) Arguments {
 		}
 
 		if index := slices.Index(DESTINATION_FLAGS, args[i]); index != -1 {
-			if i+1 < len(args) {
-				arguments.Destination = args[i+1]
-				i++
+			i++
+			if i < len(args) {
+				arguments.Destination = args[i]
 			} else {
 				fmt.Println("Expected destination URL.")
 				os.Exit(1)
@@ -103,9 +112,9 @@ func Parse(args []string) Arguments {
 		}
 
 		if index := slices.Index(TOKEN_FLAGS, args[i]); index != -1 {
-			if i+1 < len(args) {
-				arguments.Token = args[i+1]
-				i++
+			i++
+			if i < len(args) {
+				arguments.Token = args[i]
 			} else {
 				fmt.Println("Expected authorization token.")
 				os.Exit(1)
@@ -114,15 +123,27 @@ func Parse(args []string) Arguments {
 		}
 
 		if index := slices.Index(SEGMENT_DURATION_FLAGS, args[i]); index != -1 {
-			if i+1 < len(args) {
-				arguments.SegmentDuration = args[i+1]
-				i++
+			i++
+			if i < len(args) {
+				arguments.SegmentDuration = args[i]
 			} else {
 				fmt.Println("Expected segment duration.")
 				os.Exit(1)
 			}
 			continue
 		}
+
+		if index := slices.Index(OUTPUT_DIRECTORY_FLAGS, args[i]); index != -1 {
+			i++
+			if i < len(args) {
+				arguments.OutputDirectory = args[i]
+			} else {
+				fmt.Println("Expected output directory.")
+				os.Exit(1)
+			}
+			continue
+		}
+
 		fmt.Println("[WARNING] Unrecognized flag/argument:", args[i])
 
 	}
@@ -145,6 +166,8 @@ func PrintHelp() {
 	fmt.Println("    -src, --source [host:port]           Rtmp source stream address (default: " + DEFAULT_RTMP_SOURCE + ")")
 	fmt.Println("    -d, --dest     [scheme://host:port]  Destination domain where the server is running on")
 	fmt.Println("    -s, --segment  [seconds]             Segment duration in seconds (default: " + DEFAULT_SEGMENT_DURATION + ")")
+	fmt.Println("    -o, --out      [directory]           Directory for HLS chunks (not needed if --ff-upload is used")
+	fmt.Println("    -fu, --ff-upload                     Use ffmpeg to upload segments and playlists (if not behind proxy)")
 	fmt.Println("    -h, -help, --help                    Display this help message")
 	fmt.Println()
 	fmt.Println("FFmpeg dependency is necessary.")
