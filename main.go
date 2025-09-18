@@ -19,6 +19,7 @@ import (
 // Test: ./pocketstream -t OBHWYICqacQK2yFQGdQNe72O752SBVti3sU5w-Ri8KM= -d localhost:1234
 
 const StreamUploadEndpoint = "/api/stream/upload/stream.m3u8"
+const StreamUpload = "/api/stream/upload/"
 const StreamStartEndpoint = "/api/stream/start"
 const PlaylistName = "stream.m3u8"
 const M3U8ContentType = "application/vnd.apple.mpegurl"
@@ -112,20 +113,23 @@ func parseHlsPath(line string, from int) string {
 }
 
 func uploadRequest(args *Arguments, path string) {
-	destination := args.Destination + StreamUploadEndpoint
+	destination := args.Destination + StreamUpload + filepath.Base(path)
 
 	data, err := os.ReadFile(path)
 	if err != nil {
 		panic(err)
 	}
 
+	fmt.Println("Bytes len", len(data))
 	reader := bytes.NewReader(data)
 	req, err := http.NewRequest("POST", destination, reader)
 	if err != nil {
 		panic(err)
 	}
 	req.Header.Set("Authorization", args.Token)
-
+	if strings.HasSuffix(path, ".m3u8") {
+		req.Header.Set("Content-Type", M3U8ContentType)
+	}
 	response, err := client.Do(req)
 	if err != nil {
 		panic(err)
