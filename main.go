@@ -96,7 +96,7 @@ func handleStreaming(args *Arguments, cmd *exec.Cmd) {
 				lastPath = path
 				continue
 			}
-			uploadRequest(args, lastPath)
+			go uploadRequest(args, lastPath)
 			lastPath = path
 		}
 	}()
