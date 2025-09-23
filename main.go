@@ -82,6 +82,7 @@ func handleStreaming(args *Arguments, cmd *exec.Cmd) {
 
 	// FFmpeg writes only to STDERR
 	go func() {
+		lastPath := ""
 		scanner := bufio.NewScanner(stdErr)
 		for scanner.Scan() {
 			line := scanner.Text()
@@ -91,8 +92,12 @@ func handleStreaming(args *Arguments, cmd *exec.Cmd) {
 				continue
 			}
 			path := parseHlsPath(line, index+6)
-			fmt.Println("path", path)
-			uploadRequest(args, path)
+			if lastPath == "" {
+				lastPath = path
+				continue
+			}
+			uploadRequest(args, lastPath)
+			lastPath = path
 		}
 	}()
 
@@ -115,21 +120,16 @@ func parseHlsPath(line string, from int) string {
 func uploadRequest(args *Arguments, path string) {
 	destination := args.Destination + StreamUpload + filepath.Base(path)
 
-	i, attempts := 0, 20
-	for !fileExists(path) {
-		i++
-		if i > attempts {
-			fmt.Println()
-			os.Exit(1)
-		}
-		time.Sleep(100 * time.Millisecond)
+	if !fileExists(path) {
+		fmt.Println("ERROR: File at", path, "doesn't exist!")
+		return
 	}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		panic(err)
 	}
 
-	fmt.Println("Bytes len", len(data))
+	fmt.Println("Uploading", path, "of size", len(data))
 	reader := bytes.NewReader(data)
 	req, err := http.NewRequest("POST", destination, reader)
 	if err != nil {
