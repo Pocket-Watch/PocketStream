@@ -126,7 +126,8 @@ func uploadRequest(args *Arguments, path string) {
 	}
 	data, err := os.ReadFile(path)
 	if err != nil {
-		panic(err)
+		fmt.Println(err)
+		return
 	}
 
 	fmt.Println("Uploading", path, "of size", len(data))
