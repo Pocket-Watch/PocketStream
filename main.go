@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"github.com/cakturk/go-netstat/netstat"
 	"io"
 	"net/http"
 	"os"
@@ -13,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/cakturk/go-netstat/netstat"
 )
 
 // Output locally ffmpeg -listen 1 -i rtmp://localhost:9000 -codec: copy -hls_time 3 -hls_list_size 0 -f hls live.m3u8
@@ -88,10 +89,11 @@ func handleStreaming(args *Arguments, cmd *exec.Cmd) {
 			line := scanner.Text()
 			fmt.Println(line)
 			index := strings.Index(line, "[hls @")
-			if index == -1 {
+			from := index + 6
+			if index == -1 || !strings.Contains(line[from:], "Opening") {
 				continue
 			}
-			path := parseHlsPath(line, index+6)
+			path := parseHlsPath(line, from)
 			if lastPath == "" {
 				lastPath = path
 				continue
