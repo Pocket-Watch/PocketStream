@@ -24,6 +24,7 @@ const StreamUpload = "/api/stream/upload/"
 const StreamStartEndpoint = "/api/stream/start"
 const PlaylistName = "stream.m3u8"
 const M3U8ContentType = "application/vnd.apple.mpegurl"
+const MaxAttempts = 2
 
 var client = http.Client{}
 
@@ -98,7 +99,7 @@ func handleStreaming(args *Arguments, cmd *exec.Cmd) {
 				lastPath = path
 				continue
 			}
-			go uploadRequest(args, lastPath)
+			go uploadRequest(args, lastPath, 0)
 			lastPath = path
 		}
 	}()
@@ -119,7 +120,7 @@ func parseHlsPath(line string, from int) string {
 	return strings.TrimSuffix(path, ".tmp")
 }
 
-func uploadRequest(args *Arguments, path string) {
+func uploadRequest(args *Arguments, path string, attempt int) {
 	destination := args.Destination + StreamUpload + filepath.Base(path)
 
 	if !fileExists(path) {
@@ -144,7 +145,11 @@ func uploadRequest(args *Arguments, path string) {
 	}
 	response, err := client.Do(req)
 	if err != nil {
-		panic(err)
+		fmt.Println(err)
+		if attempt < MaxAttempts {
+			uploadRequest(args, destination, attempt+1)
+		}
+		return
 	}
 	defer response.Body.Close()
 
