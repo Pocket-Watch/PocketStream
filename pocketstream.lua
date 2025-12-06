@@ -2,6 +2,7 @@ local obs = obslua
 
 local pocketstream = {
     process  = nil,
+    disabled = false,
     token    = "",
     host     = "",
     source   = "",
@@ -44,15 +45,17 @@ end
 function script_properties()
     local props = obs.obs_properties_create()
 
-    obs.obs_properties_add_text(props, "token",  "Token",  obs.OBS_TEXT_DEFAULT)
-    obs.obs_properties_add_text(props, "host",   "Host",   obs.OBS_TEXT_DEFAULT)
-    obs.obs_properties_add_text(props, "source", "Source", obs.OBS_TEXT_DEFAULT)
+    obs.obs_properties_add_bool(props, "disabled", "Disable pocketstream autostart")
+    obs.obs_properties_add_text(props, "token",   "Token",   obs.OBS_TEXT_DEFAULT)
+    obs.obs_properties_add_text(props, "host",    "Host",    obs.OBS_TEXT_DEFAULT)
+    obs.obs_properties_add_text(props, "source",  "Source",  obs.OBS_TEXT_DEFAULT)
     obs.obs_properties_add_float_slider(props, "duration", "Hls Chunk\nDuration", 0.0, 10.0, 0.1)
 
     return props
 end
 
 function script_update(settings)	
+    pocketstream.disabled = obs.obs_data_get_bool(settings, "disabled")
     pocketstream.token    = obs.obs_data_get_string(settings, "token")
     pocketstream.host     = obs.obs_data_get_string(settings, "host")
     pocketstream.source   = obs.obs_data_get_string(settings, "source")
@@ -60,6 +63,11 @@ function script_update(settings)
 end
 
 function handle_event(event)
+    if pocketstream.disabled then
+        log_info("Ignoring stream start. PocketStream script is set to 'disabled'.")
+        return
+    end
+
     -- log_debug("The event was = " .. event)
 
     if event == obs.OBS_FRONTEND_EVENT_STREAMING_STARTING then
