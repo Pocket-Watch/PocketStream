@@ -40,7 +40,7 @@ func (a Arguments) Validate() {
 	}
 
 	if _, err := url.Parse(a.RtmpSource); err != nil {
-		LogError(&a, "Invalid RTMP source URL:", err)
+		LogError(&a, "Invalid RTMP source URL: %v", err)
 		os.Exit(1)
 	}
 
@@ -50,17 +50,17 @@ func (a Arguments) Validate() {
 	}
 
 	if _, err := url.Parse(a.Destination); err != nil {
-		LogError(&a, "Invalid destination URL:", err)
+		LogError(&a, "Invalid destination URL: %v", err)
 		os.Exit(1)
 	}
 
 	duration, err := strconv.ParseFloat(a.SegmentDuration, 64)
 	if err != nil {
-		LogError(&a, "Invalid segment duration:", err)
+		LogError(&a, "Invalid segment duration: %v", err)
 		os.Exit(1)
 	}
 	if duration < 0 {
-		LogError(&a, "Invalid (negative) segment duration:", err)
+		LogError(&a, "Invalid (negative) segment duration: %v", err)
 		os.Exit(1)
 	}
 }
@@ -152,7 +152,7 @@ func Parse(args []string) Arguments {
 			continue
 		}
 
-		fmt.Println("WARNING: Unrecognized flag/argument:", args[i])
+		fmt.Println("[WARN ] Unrecognized flag/argument:", args[i])
 	}
 	return arguments
 }
@@ -186,9 +186,12 @@ func PrintHelp() {
 	fmt.Println()
 }
 
-func LogError(arguments *Arguments, args ...any) {
-	message := fmt.Sprintln(args...)
-	fmt.Print(message)
+func LogError(arguments *Arguments, format string, args ...any) {
+	message := fmt.Sprintf(format, args...)
+	output := fmt.Sprintf("[ERROR] %v\n", message)
+
+	fmt.Print(output)
+
 	if arguments.SaveErrors {
 		logFile := DEFAULT_ERROR_FILE
 		f, err := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
@@ -198,7 +201,7 @@ func LogError(arguments *Arguments, args ...any) {
 		}
 		defer f.Close()
 
-		if _, err := f.WriteString(message); err != nil {
+		if _, err := f.WriteString(output); err != nil {
 			fmt.Println(err)
 			return
 		}

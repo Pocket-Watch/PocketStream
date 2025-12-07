@@ -10,22 +10,22 @@ local pocketstream = {
 }
 
 function log_error(message)
-    print("ERROR: " .. message)
+    print("[ERROR] " .. message)
     obs.blog(obs.LOG_ERROR, message)
 end
 
 function log_warn(message)
-    print("WARN: " .. message)
+    print("[WARN ] " .. message)
     obs.blog(obs.LOG_WARNING, message)
 end
 
 function log_info(message)
-    print("INFO: " .. message)
+    print("[INFO ] " .. message)
     obs.blog(obs.LOG_INFO, message)
 end
 
 function log_debug(message)
-    print("DEBUG: " .. message)
+    print("[DEBUG] " .. message)
     obs.blog(obs.LOG_DEBUG, message)
 end
 
@@ -54,7 +54,7 @@ function script_properties()
     return props
 end
 
-function script_update(settings)	
+function script_update(settings)
     pocketstream.disabled = obs.obs_data_get_bool(settings, "disabled")
     pocketstream.token    = obs.obs_data_get_string(settings, "token")
     pocketstream.host     = obs.obs_data_get_string(settings, "host")
@@ -92,28 +92,38 @@ function start_pocket_stream()
         return
     end
 
-    local args = " --dest " .. host .. " --token " .. token
+    local args = " --dest " .. host .. " --token " .. token .. " --save-errors"
 
     local source = pocketstream.source
-    if source ~= "" then 
+    if source ~= "" then
         args = args .. " --source " .. source
     end
 
     local duration = pocketstream.duration
-    if duration ~= 0 then 
+    if duration ~= 0 then
         args = args .. " --segment " .. duration
     end
 
     -- log_debug("Args are: " .. args)
 
     local process = io.popen("pocketstream" .. args)
+    if process == nil then
+        log_error("Failed to run the PocketStream helper program.")
+        return
+    end
+
     pocketstream.process = process;
 
+    error_message  = ""
+    process_failed = false
+
     for line in process:lines() do
-        if starts_with(line, "ERROR") then
-            local message = string.sub(line, string.len("ERROR") + 2)
-            log_error(message)
-            return
+        if starts_with(line, "[ERROR]") then
+            process_failed = true
+            error_message = string.sub(line, string.len("[ERROR]") + 2)
+            log_error(error_message)
+        elseif process_failed then
+            log_error(line)
         end
 
         if line == "PocketStream is ready" then
