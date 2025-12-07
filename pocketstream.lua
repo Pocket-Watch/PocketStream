@@ -113,14 +113,12 @@ function start_pocket_stream()
     end
 
     pocketstream.process = process;
-
-    error_message  = ""
-    process_failed = false
+    local process_failed = false
 
     for line in process:lines() do
         if starts_with(line, "[ERROR]") then
             process_failed = true
-            error_message = string.sub(line, string.len("[ERROR]") + 2)
+            local error_message = string.sub(line, string.len("[ERROR]") + 2)
             log_error(error_message)
         elseif process_failed then
             log_error(line)
