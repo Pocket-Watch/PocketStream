@@ -62,7 +62,7 @@ func main() {
 
 func handleStreaming(args *Arguments, cmd *exec.Cmd) {
 	if err := os.MkdirAll(args.OutputDirectory, 0o755); err != nil {
-		fmt.Println("Error creating output directory:", err)
+		LogError(args, "Failed to create output directory:", err)
 		os.Exit(1)
 	}
 
@@ -80,7 +80,7 @@ func handleStreaming(args *Arguments, cmd *exec.Cmd) {
 		return
 	}
 
-	checkPortClaimedPeriodically(args.RtmpSource, 250*time.Millisecond, 10)
+	checkPortClaimedPeriodically(args, 250*time.Millisecond, 10)
 
 	// FFmpeg writes only to STDERR
 	go func() {
@@ -124,12 +124,12 @@ func uploadRequest(args *Arguments, path string, attempt int) {
 	destination := args.Destination + StreamUpload + filepath.Base(path)
 
 	if !fileExists(path) {
-		fmt.Println("ERROR: File at", path, "doesn't exist!")
+		LogError(args, "File at", path, "doesn't exist!")
 		return
 	}
 	data, err := os.ReadFile(path)
 	if err != nil {
-		fmt.Println(err)
+		LogError(args, err)
 		return
 	}
 
@@ -137,6 +137,7 @@ func uploadRequest(args *Arguments, path string, attempt int) {
 	reader := bytes.NewReader(data)
 	req, err := http.NewRequest("POST", destination, reader)
 	if err != nil {
+		LogError(args, err)
 		panic(err)
 	}
 	req.Header.Set("Authorization", args.Token)
@@ -145,7 +146,7 @@ func uploadRequest(args *Arguments, path string, attempt int) {
 	}
 	response, err := client.Do(req)
 	if err != nil {
-		fmt.Println(err)
+		LogError(args, err)
 		if attempt < MaxAttempts {
 			uploadRequest(args, destination, attempt+1)
 		}
@@ -191,15 +192,16 @@ func executeCommandStdPipe(args *Arguments, cmd *exec.Cmd) {
 		return
 	}
 
-	checkPortClaimedPeriodically(args.RtmpSource, 250*time.Millisecond, 10)
+	checkPortClaimedPeriodically(args, 250*time.Millisecond, 10)
 	fmt.Println("PocketStream is ready")
 
 	if err := cmd.Wait(); err != nil {
-		fmt.Println(err)
+		LogError(args, err)
 	}
 }
 
-func checkPortClaimedPeriodically(address string, interval time.Duration, attempts int) {
+func checkPortClaimedPeriodically(args *Arguments, interval time.Duration, attempts int) {
+	address := args.RtmpSource
 	addressV4 := strings.Replace(address, "localhost", "127.0.0.1", 1)
 	addressV6 := strings.Replace(address, "localhost", "::1", 1)
 	start := time.Now()
@@ -210,7 +212,7 @@ func checkPortClaimedPeriodically(address string, interval time.Duration, attemp
 		})
 
 		if err != nil {
-			fmt.Println("[CHECK TCPv4 ERROR]", err)
+			LogError(args, "TCPv4 port check failed due to", err)
 			os.Exit(1)
 		}
 
@@ -220,7 +222,7 @@ func checkPortClaimedPeriodically(address string, interval time.Duration, attemp
 		})
 
 		if err != nil {
-			fmt.Println("[CHECK TCPv6 ERROR]", err)
+			LogError(args, "TCPv6 port check failed due to", err)
 			os.Exit(1)
 		}
 
@@ -232,13 +234,13 @@ func checkPortClaimedPeriodically(address string, interval time.Duration, attemp
 		time.Sleep(interval)
 	}
 
-	fmt.Println("ERROR Failed to determine whether address", address, "is claimed after", attempts, "attempts")
+	LogError(args, "Failed to determine whether address", address, "is claimed after", attempts, "attempts")
 }
 
 func startStream(args *Arguments) {
 	req, err := http.NewRequest("POST", args.Destination+StreamStartEndpoint, nil)
 	if err != nil {
-		fmt.Println("ERROR", err)
+		LogError(args, err)
 		os.Exit(1)
 	}
 
@@ -247,14 +249,14 @@ func startStream(args *Arguments) {
 	client := http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		fmt.Println("ERROR", err)
+		LogError(args, err)
 		os.Exit(1)
 	}
 
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		fmt.Println("ERROR Server responded with status code:", resp.Status)
+		LogError(args, "Server responded with status code:", resp.Status)
 
 		errBody, err := io.ReadAll(resp.Body)
 		var bodyError = ""
@@ -262,7 +264,7 @@ func startStream(args *Arguments) {
 			bodyError = string(errBody)
 		}
 
-		fmt.Println(bodyError)
+		LogError(args, bodyError)
 		os.Exit(1)
 	}
 }

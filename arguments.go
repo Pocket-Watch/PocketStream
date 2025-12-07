@@ -16,6 +16,7 @@ var DESTINATION_FLAGS = []string{"-d", "--dest", "--domain"}
 var SEGMENT_DURATION_FLAGS = []string{"-s", "--segment", "--seg"}
 var OUTPUT_DIRECTORY_FLAGS = []string{"-o", "--out"}
 var FFMPEG_UPLOAD_FLAGS = []string{"-fu", "--ff-upload"}
+var SAVE_ERRORS_FLAGS = []string{"--save-errors"}
 
 type Arguments struct {
 	Token           string
@@ -24,41 +25,42 @@ type Arguments struct {
 	SegmentDuration string
 	OutputDirectory string
 	FFmpegUpload    bool
+	SaveErrors      bool
 }
 
 func (a Arguments) Validate() {
 	if a.Token == "" {
-		fmt.Println("ERROR No token specified!")
+		LogError(&a, "No token specified!")
 		os.Exit(1)
 	}
 
 	if a.RtmpSource == "" {
-		fmt.Println("ERROR No RTMP source specified!")
+		LogError(&a, "No RTMP source specified")
 		os.Exit(1)
 	}
 
 	if _, err := url.Parse(a.RtmpSource); err != nil {
-		fmt.Println("ERROR Invalid RTMP source URL ", err)
+		LogError(&a, "Invalid RTMP source URL:", err)
 		os.Exit(1)
 	}
 
 	if a.Destination == "" {
-		fmt.Println("ERROR No destination specified!")
+		LogError(&a, "No destination specified!")
 		os.Exit(1)
 	}
 
 	if _, err := url.Parse(a.Destination); err != nil {
-		fmt.Println("ERROR Invalid destination URL ", err)
+		LogError(&a, "Invalid destination URL:", err)
 		os.Exit(1)
 	}
 
 	duration, err := strconv.ParseFloat(a.SegmentDuration, 64)
 	if err != nil {
-		fmt.Println("ERROR Invalid segment duration: ", err)
+		LogError(&a, "Invalid segment duration:", err)
 		os.Exit(1)
 	}
 	if duration < 0 {
-		fmt.Println("ERROR Invalid (negative) segment duration: ", err)
+		LogError(&a, "Invalid (negative) segment duration:", err)
 		os.Exit(1)
 	}
 }
@@ -66,6 +68,7 @@ func (a Arguments) Validate() {
 const DEFAULT_RTMP_SOURCE = "localhost:9000"
 const DEFAULT_SEGMENT_DURATION = "2"
 const DEFAULT_OUTPUT_DIRECTORY = "stream"
+const DEFAULT_ERROR_FILE = "stream-error-log.txt"
 
 func Parse(args []string) Arguments {
 	if len(args) == 0 {
@@ -89,12 +92,17 @@ func Parse(args []string) Arguments {
 			continue
 		}
 
+		if slices.Contains(SAVE_ERRORS_FLAGS, args[i]) {
+			arguments.SaveErrors = true
+			continue
+		}
+
 		if index := slices.Index(SOURCE_FLAGS, args[i]); index != -1 {
 			i++
 			if i < len(args) {
 				arguments.RtmpSource = args[i]
 			} else {
-				fmt.Println("Expected RTMP source.")
+				LogError(&arguments, "Expected RTMP source.")
 				os.Exit(1)
 			}
 			continue
@@ -105,7 +113,7 @@ func Parse(args []string) Arguments {
 			if i < len(args) {
 				arguments.Destination = args[i]
 			} else {
-				fmt.Println("Expected destination URL.")
+				LogError(&arguments, "Expected destination URL.")
 				os.Exit(1)
 			}
 			continue
@@ -116,7 +124,7 @@ func Parse(args []string) Arguments {
 			if i < len(args) {
 				arguments.Token = args[i]
 			} else {
-				fmt.Println("Expected authorization token.")
+				LogError(&arguments, "Expected authorization token.")
 				os.Exit(1)
 			}
 			continue
@@ -127,7 +135,7 @@ func Parse(args []string) Arguments {
 			if i < len(args) {
 				arguments.SegmentDuration = args[i]
 			} else {
-				fmt.Println("Expected segment duration.")
+				LogError(&arguments, "Expected segment duration.")
 				os.Exit(1)
 			}
 			continue
@@ -138,14 +146,13 @@ func Parse(args []string) Arguments {
 			if i < len(args) {
 				arguments.OutputDirectory = args[i]
 			} else {
-				fmt.Println("Expected output directory.")
+				LogError(&arguments, "Expected output directory.")
 				os.Exit(1)
 			}
 			continue
 		}
 
-		fmt.Println("[WARNING] Unrecognized flag/argument:", args[i])
-
+		fmt.Println("WARNING: Unrecognized flag/argument:", args[i])
 	}
 	return arguments
 }
@@ -168,6 +175,7 @@ func PrintHelp() {
 	fmt.Println("    -s, --segment  [seconds]             Segment duration in seconds (default: " + DEFAULT_SEGMENT_DURATION + ")")
 	fmt.Println("    -o, --out      [directory]           Directory for HLS chunks (not needed if --ff-upload is used")
 	fmt.Println("    -fu, --ff-upload                     Use ffmpeg to upload segments and playlists (if not behind proxy)")
+	fmt.Println("    --save-errors                        Save errors to " + DEFAULT_ERROR_FILE + " (useful when used behind UI)")
 	fmt.Println("    -h, -help, --help                    Display this help message")
 	fmt.Println()
 	fmt.Println("FFmpeg dependency is necessary.")
@@ -176,4 +184,23 @@ func PrintHelp() {
 	fmt.Println("Usage example:")
 	fmt.Printf("  %v -t OBHWYICqacQK2yFQGdQNe72O752SBVti3sU5w-Ri8KM= --dest https://example.com", exec)
 	fmt.Println()
+}
+
+func LogError(arguments *Arguments, args ...any) {
+	message := fmt.Sprintln(args...)
+	fmt.Print(message)
+	if arguments.SaveErrors {
+		logFile := DEFAULT_ERROR_FILE
+		f, err := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		defer f.Close()
+
+		if _, err := f.WriteString(message); err != nil {
+			fmt.Println(err)
+			return
+		}
+	}
 }
